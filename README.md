@@ -4,6 +4,7 @@
 
 - Symfony 5.3
 - PHP 8.0.2
+- Composer version 2.2.22
 
 
 ### Levantar por linea de comandos
