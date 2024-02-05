@@ -41,3 +41,8 @@ php bin/console make:entity --help
     4. Validar el esquema
     php bin/console doctrine:schema:validate
 
+
+## ENDPOINTS (POSTMAN) -- Esto no se pasa. Es para facilitar el trabajo ahora para testear
+http://127.0.0.1:8000/agregar-productos  POST
+http://127.0.0.1:8000/eliminar-producto?id=6 (o cadena 6,7,8..) DELETE
+http://127.0.0.1:8000/editar-producto/sku1 PUT
