@@ -38,11 +38,14 @@ class Producto
     private $createdAt;
 
     /**
-     * @ORM\Column(type="datetime", name="updated_at", options={"default": "CURRENT_TIMESTAMP", "onUpdate" : "CURRENT_TIMESTAMP"})
+     * @ORM\Column(type="datetime", name="updated_at", nullable=true, options={"default": "NULL"})
      */
     private $updatedAt;
 
-    // Getters and setters...
+    public function __construct()
+    {
+        $this->updatedAt = null;
+    }
 
     public function getId(): ?int
     {

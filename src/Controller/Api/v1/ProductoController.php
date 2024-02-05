@@ -11,8 +11,11 @@ use Psr\Log\LoggerInterface;
 use App\Entity\Producto;
 use Doctrine\ORM\EntityManagerInterface;
 
+
 class testController extends AbstractController
 {
+
+    //? Los nombres y rutas son descriptivos para identificar fácil los endpoints. En buenas prácticas no los utilzaria.
 
     private $logger;
 
@@ -20,37 +23,6 @@ class testController extends AbstractController
     {
         $this->logger = $logger;
     }
-
-
-    /**
-     * @Route("/test/list", name="test_list")
-     * 
-     */
-
-     public function list(){
-        $response = new Response();
-        $response->setContent('<div>Hola mundo</div>');
-        return $response;
-     }
-
-    /**
-     * @Route("/test/list2", name="test_list2")
-     * 
-     */
-
-     public function list2(Request $request){
-        $this->logger->info('envio json'); //En el services.yaml agregar servicio para utilizar este info
-
-        $data = [
-            'success' => true,
-            'data' => [
-                ['id' => 1, 'title' => 'Relatos salvajes'],
-                ['id' => 2, 'title' => 'Relatos salvajes2'],
-            ],
-        ];
-    
-        return new JsonResponse($data);
-     }
 
      /**
      * @Route("/agregar-productos", name="agregar_productos", methods={"POST"})
@@ -60,21 +32,23 @@ class testController extends AbstractController
         // Obtiene los datos del cuerpo de la solicitud
         $data = json_decode($request->getContent(), true);
 
-        var_dump($data);
+        //Estoy en Argentina sino esto no se hace.
+        $timezone = new \DateTimeZone('America/Argentina/Buenos_Aires');
+        $now = new \DateTime('now', $timezone);
 
-        // Verifica si el SKU ya existe
+        // Verifico si el SKU ya existe
         $existingProduct = $entityManager->getRepository(Producto::class)->findOneBy(['sku' => $data['sku']]);
 
         if ($existingProduct === null) {
             $now = new \DateTime('now');
 
-            // Crea un nuevo producto
+            // Creamos nuevo producto
             $producto = new Producto();
             $producto->setSku($data['sku']);
-            $producto->setNombreProducto($data['nombre']);
+            $producto->setNombreProducto($data['nombre_producto']);
             $producto->setDescripcion($data['descripcion']);
-            $producto->setCreatedAt($now);
-            $producto->setUpdatedAt($now);
+            $createdAt = new \DateTime($data['created_at'], $timezone);
+            $producto->setCreatedAt($createdAt);;
 
             // Persiste el producto
             $entityManager->persist($producto);
@@ -93,10 +67,10 @@ class testController extends AbstractController
     {
         $ids = $request->query->get('id', '');
 
-        // Asegúrate de que $ids sea un array
+        //Separo la lista (en caso de venir muchos ids por ,)
         $ids = explode(',', $ids);
 
-        // Obtener los productos según los IDs proporcionados
+        // Obtengo el o los resultados
         $productos = $entityManager->getRepository(Producto::class)->findBy(['id' => $ids]);
 
         foreach ($productos as $producto) {
@@ -104,7 +78,6 @@ class testController extends AbstractController
                 $entityManager->remove($producto);
             }
         }
-
         $entityManager->flush();
 
         return new Response("Productos con ID(s) '" . implode(', ', $ids) . "' eliminados correctamente.");
@@ -112,24 +85,41 @@ class testController extends AbstractController
 
 
     /**
-     * @Route("/editar-producto/{sku}", name="editar_producto")
+     * @Route("/editar-producto/{sku}", name="editar_producto", methods={"POST", "PUT"})
      */
-    public function editarProducto(EntityManagerInterface $entityManager, $sku): Response
+    public function editarProducto(EntityManagerInterface $entityManager, Request $request, $sku): JsonResponse
     {
+        $data = json_decode($request->getContent(), true);
+        $timezone = new \DateTimeZone('America/Argentina/Buenos_Aires');
+        $now = new \DateTime('now', $timezone);
+
         $producto = $entityManager->getRepository(Producto::class)->findOneBy(['sku' => $sku]);
-        $now = new \DateTime();
 
         if ($producto !== null) {
-            // Modifica los datos del producto según tus necesidades
-            $producto->setNombreProducto('Nuevo Nombre');
-            $producto->setDescripcion('Nueva Descripción');
-            $producto1->setUpdatedAt($now); // Establece la fecha y hora actual
+            if (isset($data['nombre_producto'])) {
+                $producto->setNombreProducto($data['nombre_producto']);
+            }
+
+            if (isset($data['descripcion'])) {
+                $producto->setDescripcion($data['descripcion']);
+            }
+
+            $producto->setUpdatedAt($now);
 
             $entityManager->flush();
 
-            return new Response("Producto con SKU '{$sku}' editado correctamente.");
+            $response = [
+                'message' => "Producto con SKU '{$sku}' editado correctamente.",
+                'data' => [
+                    'nombre_producto' => $producto->getNombreProducto(),
+                    'descripcion' => $producto->getDescripcion(),
+                    'updated_at' => $producto->getUpdatedAt()->format('Y-m-d H:i:s'),
+                ],
+            ];
+
+            return new JsonResponse($response);
         } else {
-            return new Response("No se encontró un producto con SKU '{$sku}'.");
+            return new JsonResponse(['message' => "No se encontró un producto con SKU '{$sku}'."], 404);
         }
     }
 
@@ -142,13 +132,18 @@ class testController extends AbstractController
 
         $data = [];
         foreach ($productos as $producto) {
+            //Verificacion de fechas por si es null y por si existe
+            $updatedAt = $producto->getUpdatedAt();
+
+            $formattedUpdatedAt = $updatedAt ? $updatedAt->format('Y-m-d H:i:s') : null;
+
             $data[] = [
                 'id' => $producto->getId(),
                 'sku' => $producto->getSku(),
                 'nombre_producto' => $producto->getNombreProducto(),
                 'descripcion' => $producto->getDescripcion(),
                 'created_at' => $producto->getCreatedAt()->format('Y-m-d H:i:s'),
-                'updated_at' => $producto->getUpdatedAt()->format('Y-m-d H:i:s'),
+                'updated_at' => $formattedUpdatedAt,
             ];
         }
 
